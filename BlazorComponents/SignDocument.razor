@@ -1,29 +1,69 @@
-@page "/sign"
-@inject IJSRuntime JS
+ @page "/sign-pdf"
+@inject IHttpClientFactory HttpClientFactory
 
-<h3>Sign Document</h3>
+<h3>Sign PDF using Local Token</h3>
 
-<button @onclick="SignPdf">Sign PDF (Mock)</button>
-<button @onclick="SignXml">Sign XML (Mock)</button>
-
-<p>@Status</p>
+<input type="file" accept="application/pdf" @onchange="OnFileChanged" />
+@if (Uploading)
+{
+    <p>Uploading and signing... Please wait.</p>
+}
+@if (DownloadUrl != null)
+{
+    <a class="btn btn-success" href="@DownloadUrl" download="@DownloadFileName">Download Signed PDF</a>
+}
 
 @code {
-    private string Status = "Idle";
+    bool Uploading = false;
+    string DownloadUrl = null;
+    string DownloadFileName = null;
 
-    private async Task SignPdf()
+    async Task OnFileChanged(ChangeEventArgs e)
     {
-        Status = "Signing PDF...";
-        var mockData = Convert.ToBase64String(Encoding.UTF8.GetBytes("Mock PDF hash data"));
-        var signature = await JS.InvokeAsync<string>("signFromLocalService", "sign-pdf", mockData);
-        Status = $"PDF Signature: {signature}";
+        Uploading = true;
+        DownloadUrl = null;
+
+        var file = (e.Value as Microsoft.AspNetCore.Components.Forms.IBrowserFile[] ?? new[] { e.Value as Microsoft.AspNetCore.Components.Forms.IBrowserFile })[0];
+        if (file == null)
+        {
+            Uploading = false;
+            return;
+        }
+        DownloadFileName = $"signed_{file.Name}";
+
+        using var ms = new MemoryStream();
+        await file.OpenReadStream().CopyToAsync(ms);
+        var pdfBytes = ms.ToArray();
+        var base64Pdf = Convert.ToBase64String(pdfBytes);
+
+        try
+        {
+            // Using HttpClientFactory for DI compatibility
+            var client = HttpClientFactory.CreateClient();
+            var request = new HttpRequestMessage(HttpMethod.Post, "http://localhost:5005/sign-pdf");
+            request.Content = new StringContent(base64Pdf, Encoding.UTF8, "text/plain");
+            var response = await client.SendAsync(request);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                Uploading = false;
+                var errorMsg = await response.Content.ReadAsStringAsync();
+                throw new Exception($"Signing failed: {errorMsg}");
+            }
+
+            var base64SignedPdf = await response.Content.ReadAsStringAsync();
+            DownloadUrl = $"data:application/pdf;base64,{base64SignedPdf}";
+        }
+        catch (Exception ex)
+        {
+            Uploading = false;
+            DownloadUrl = null;
+            DownloadFileName = null;
+            await JS.InvokeVoidAsync("alert", $"Failed: {ex.Message}");
+            return;
+        }
+        Uploading = false;
     }
 
-    private async Task SignXml()
-    {
-        Status = "Signing XML...";
-        var mockXml = "<Invoice><ID>123</ID><Total>10.00</Total></Invoice>";
-        var signature = await JS.InvokeAsync<string>("signFromLocalService", "sign-xml", mockXml);
-        Status = $"Signed XML: {signature.Substring(0, 100)}...";
-    }
+    [Inject] IJSRuntime JS { get; set; }
 }
