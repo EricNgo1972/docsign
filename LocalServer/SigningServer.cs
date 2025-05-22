@@ -5,6 +5,13 @@ using Syncfusion.Pdf.Security;
 using System.Windows.Forms; // Needs reference to System.Windows.Forms
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddCors(options => {
+    options.AddDefaultPolicy(policy => 
+        policy.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod());
+});
+app.UseCors();
+app.UseCors();
 var app = builder.Build();
 
 X509Certificate2 SelectCertificateFromStore()
