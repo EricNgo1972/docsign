@@ -51,6 +51,11 @@ app.MapPost("/sign-xml", async (HttpContext ctx) =>
     reference.AddTransform(new XmlDsigEnvelopedSignatureTransform());
     signedXml.AddReference(reference);
 
+    // Include key info (optional, adds public cert)
+KeyInfo keyInfo = new KeyInfo();
+keyInfo.AddClause(new KeyInfoX509Data(cert));
+signedXml.KeyInfo = keyInfo;
+    
     signedXml.ComputeSignature();
     XmlElement xmlSignature = signedXml.GetXml();
     xmlDoc.DocumentElement?.AppendChild(xmlDoc.ImportNode(xmlSignature, true));
