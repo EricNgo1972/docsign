@@ -10,9 +10,10 @@ builder.Services.AddCors(options => {
     options.AddDefaultPolicy(policy => 
         policy.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod());
 });
-app.UseCors();
+
 
 var app = builder.Build();
+app.UseCors();
 
 X509Certificate2 SelectCertificateFromStore()
 {
