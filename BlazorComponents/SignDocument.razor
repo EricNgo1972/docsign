@@ -1,0 +1,29 @@
+@page "/sign"
+@inject IJSRuntime JS
+
+<h3>Sign Document</h3>
+
+<button @onclick="SignPdf">Sign PDF (Mock)</button>
+<button @onclick="SignXml">Sign XML (Mock)</button>
+
+<p>@Status</p>
+
+@code {
+    private string Status = "Idle";
+
+    private async Task SignPdf()
+    {
+        Status = "Signing PDF...";
+        var mockData = Convert.ToBase64String(Encoding.UTF8.GetBytes("Mock PDF hash data"));
+        var signature = await JS.InvokeAsync<string>("signFromLocalService", "sign-pdf", mockData);
+        Status = $"PDF Signature: {signature}";
+    }
+
+    private async Task SignXml()
+    {
+        Status = "Signing XML...";
+        var mockXml = "<Invoice><ID>123</ID><Total>10.00</Total></Invoice>";
+        var signature = await JS.InvokeAsync<string>("signFromLocalService", "sign-xml", mockXml);
+        Status = $"Signed XML: {signature.Substring(0, 100)}...";
+    }
+}
